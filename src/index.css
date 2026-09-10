@@ -1,0 +1,248 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-dark: #0f1210;
+    --card-bg: #222623;
+    --btn-primary: #55C64B;
+    --btn-hover: #6FE35D;
+    --border-main: #3d453f;
+    --heading-color: #FFFFFF;
+    --body-color: #A8A8A8;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #0f1210;
+    color: #A8A8A8;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: #FFFFFF;
+  }
+}
+
+.font-pixel {
+  font-family: 'Silkscreen', monospace, sans-serif;
+}
+
+.font-heading {
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Authentic pixel rendering for all Minecraft sprites & textures */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* Minecraft Rough Stone & Bedrock Pixel Texture */
+.mc-rough-stone-texture {
+  background-image: 
+    radial-gradient(#252c26 15%, transparent 16%),
+    radial-gradient(#1a201b 15%, transparent 16%),
+    radial-gradient(#2d362e 15%, transparent 16%),
+    radial-gradient(#121613 15%, transparent 16%);
+  background-size: 16px 16px;
+  background-position: 0 0, 8px 8px, 4px 12px, 12px 4px;
+  image-rendering: pixelated;
+}
+
+.mc-pixel-grid {
+  background-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 0.45) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.45) 1px, transparent 1px);
+  background-size: 8px 8px;
+  image-rendering: pixelated;
+}
+
+/* Rough textured surface for Minecraft UI panels */
+.mc-rough-panel {
+  background-color: #1c211e;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0);
+  background-size: 8px 8px;
+  image-rendering: pixelated;
+}
+
+/* Authentic Inset Minecraft Slot */
+.minecraft-slot {
+  background-color: #171b18;
+  border-top: 2px solid #0b0e0c;
+  border-left: 2px solid #0b0e0c;
+  border-right: 2px solid #363e38;
+  border-bottom: 2px solid #363e38;
+  box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.7);
+}
+
+.minecraft-slot-active {
+  background-color: #243322;
+  border-top: 2px solid #3d9435;
+  border-left: 2px solid #3d9435;
+  border-right: 2px solid #6fe35d;
+  border-bottom: 2px solid #6fe35d;
+  box-shadow: 0 0 10px rgba(85, 198, 75, 0.4), inset 2px 2px 3px rgba(0, 0, 0, 0.5);
+}
+
+.minecraft-slot-output {
+  background-color: #1a1e1b;
+  border-top: 3px solid #0b0e0c;
+  border-left: 3px solid #0b0e0c;
+  border-right: 3px solid #3d453f;
+  border-bottom: 3px solid #3d453f;
+  box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.75), 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Clean, Spacious Minecraft Card (replacing tilted 3D voxel clutter) */
+.minecraft-clean-card {
+  background-color: #1c211e;
+  border: 2px solid #353d37;
+  border-top: 2px solid #424d45;
+  border-left: 2px solid #424d45;
+  border-right: 2px solid #141715;
+  border-bottom: 3px solid #101311;
+  box-shadow: 0 4px 0px #0b0e0c, 0 10px 20px rgba(0, 0, 0, 0.6);
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.minecraft-clean-card:hover {
+  transform: translateY(-2px);
+  border-color: #55C64B;
+  border-top-color: #7eed72;
+  box-shadow: 0 6px 0px #0b0e0c, 0 14px 24px rgba(0, 0, 0, 0.75);
+}
+
+.voxel-card-3d {
+  background-color: #1c211e;
+  border: 2px solid #353d37;
+  border-top: 2px solid #424d45;
+  border-left: 2px solid #424d45;
+  border-right: 2px solid #141715;
+  border-bottom: 3px solid #101311;
+  box-shadow: 0 4px 0px #0b0e0c, 0 10px 20px rgba(0, 0, 0, 0.6);
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.voxel-card-3d:hover {
+  transform: translateY(-2px);
+  border-color: #55C64B;
+  border-top-color: #7eed72;
+}
+
+/* Minecraft Pixel Action Button */
+.btn-3d {
+  background-color: #55C64B;
+  color: #000000;
+  font-weight: 700;
+  border-top: 2px solid #7fed72;
+  border-left: 2px solid #7fed72;
+  border-right: 2px solid #36852f;
+  border-bottom: 3px solid #286622;
+  box-shadow: 0 3px 0px #1a4216, 0 4px 10px rgba(0, 0, 0, 0.4);
+  transition: transform 0.08s ease, background-color 0.12s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.btn-3d:hover {
+  background-color: #6FE35D;
+  border-top-color: #92f788;
+  border-left-color: #92f788;
+  box-shadow: 0 3px 0px #1f4f1a, 0 6px 14px rgba(111, 227, 93, 0.35);
+}
+
+.btn-3d:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0px #1a4216;
+}
+
+/* Secondary Button */
+.btn-3d-secondary {
+  background-color: #1e2420;
+  color: #FFFFFF;
+  border-top: 2px solid #3a453d;
+  border-left: 2px solid #3a453d;
+  border-right: 2px solid #101412;
+  border-bottom: 3px solid #0d100e;
+  box-shadow: 0 3px 0px #090c0a, 0 4px 10px rgba(0, 0, 0, 0.4);
+  transition: transform 0.08s ease, background-color 0.12s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.btn-3d-secondary:hover {
+  background-color: #272f2a;
+  color: #55C64B;
+  border-color: #4b584f;
+  box-shadow: 0 3px 0px #090c0a, 0 6px 12px rgba(0, 0, 0, 0.5);
+}
+
+.btn-3d-secondary:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0px #090c0a;
+}
+
+/* Hard-edged Minecraft panel in theme */
+.minecraft-panel {
+  background-color: #1c211e;
+  border: 2px solid #38423b;
+  border-top: 2px solid #4a574d;
+  border-left: 2px solid #4a574d;
+  border-right: 2px solid #141715;
+  border-bottom: 2px solid #141715;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.85);
+}
+
+/* Minecraft Hotbar Shell */
+.minecraft-hotbar-shell {
+  background-color: #1c211e;
+  border-top: 3px solid #444f46;
+  border-left: 3px solid #444f46;
+  border-right: 3px solid #101412;
+  border-bottom: 4px solid #0c0f0d;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85), 0 4px 0px #0a0d0b;
+}
+
+.minecraft-hotbar-slot {
+  background-color: #151916;
+  border-top: 2px solid #0b0e0c;
+  border-left: 2px solid #0b0e0c;
+  border-right: 2px solid #353e37;
+  border-bottom: 2px solid #353e37;
+  box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.6);
+  transition: all 0.12s ease;
+}
+
+.minecraft-hotbar-slot:hover {
+  background-color: #202722;
+  border-color: #4b574e;
+}
+
+.minecraft-hotbar-selected {
+  background-color: #243322;
+  outline: 3px solid #FFFFFF;
+  outline-offset: -1px;
+  box-shadow: 0 0 16px rgba(111, 227, 93, 0.5), inset 2px 2px 0 rgba(255, 255, 255, 0.9), inset -2px -2px 0 rgba(0, 0, 0, 0.7);
+  transform: translateY(-2px) scale(1.04);
+  z-index: 25;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f1210;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #252d27;
+  border: 1px solid #38423b;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #55C64B;
+}

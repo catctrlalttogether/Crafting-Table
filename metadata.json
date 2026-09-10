@@ -1,0 +1,8 @@
+{
+  "name": "Crafting Table",
+  "description": "Spacious, minimalist Minecraft crafting table and recipe encyclopedia.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
