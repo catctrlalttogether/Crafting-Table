@@ -1,8 +1,3 @@
-export type AppTab =
-  | 'home'
-  | 'recipes'
-  | 'favorites';
-
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic';
 
 export interface ItemInfo {
@@ -25,16 +20,17 @@ export interface RecipeOutput {
 export interface Recipe {
   id: string;
   name: string;
-  category: 'building' | 'tools' | 'combat' | 'armor' | 'redstone' | 'food' | 'utility' | 'transport' | 'decoration' | 'trials';
+  category: string;
   grid: (string | null)[]; // 9 slots, row-major
   output: RecipeOutput;
   shapeless: boolean;
-  isCraftable?: boolean; // false for reference-only items like Elytra
+  isCraftable?: boolean;
   note?: string;
   description: string;
   version: string;
   tags: string[];
   searchKeywords: string[];
+  giveCommand?: string;
   stats?: string;
 }
 

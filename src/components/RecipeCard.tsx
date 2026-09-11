@@ -2,10 +2,11 @@ import React from 'react';
 import { Recipe } from '../types';
 import { ItemSprite } from './ItemSprite';
 import { sound } from '../utils/audio';
-import { Star } from 'lucide-react';
+import { Star, CheckCircle } from 'lucide-react';
 
 interface RecipeCardProps {
   recipe: Recipe;
+  isSelected?: boolean;
   isFavorite: boolean;
   onSelect: (recipe: Recipe) => void;
   onToggleFavorite: (recipeId: string) => void;
@@ -13,6 +14,7 @@ interface RecipeCardProps {
 
 export const RecipeCard: React.FC<RecipeCardProps> = ({
   recipe,
+  isSelected = false,
   isFavorite,
   onSelect,
   onToggleFavorite,
@@ -23,9 +25,21 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
         sound.playWoodClick();
         onSelect(recipe);
       }}
-      className="minecraft-clean-card group relative flex flex-col items-center justify-between p-4 sm:p-5 rounded-xs cursor-pointer select-none"
+      className={`minecraft-clean-card group relative flex flex-col items-center justify-between p-4 sm:p-5 rounded-xs cursor-pointer select-none transition-all ${
+        isSelected
+          ? 'border-2 border-[#55C64B] bg-[#1a231b] shadow-[0_0_15px_rgba(85,198,75,0.3)]'
+          : ''
+      }`}
     >
-      {/* Favorite Star Button */}
+      {/* Selection / Favorite Indicator Badge */}
+      <div className="absolute top-2 left-2 flex items-center gap-1">
+        {isSelected && (
+          <span className="p-1 rounded-xs bg-[#55C64B] text-black" title="Currently Selected in 3x3 Workstation">
+            <CheckCircle className="w-3 h-3 stroke-[3]" />
+          </span>
+        )}
+      </div>
+
       <button
         type="button"
         onClick={(e) => {
@@ -44,7 +58,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
       </button>
 
       {/* Center Sprite */}
-      <div className="flex flex-col items-center pt-2 pb-2 w-full">
+      <div className="flex flex-col items-center pt-3 pb-1 w-full">
         <div className="minecraft-slot relative w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center rounded-xs mb-3 group-hover:scale-105 transition-transform duration-100">
           <ItemSprite
             id={recipe.output.item}
@@ -59,9 +73,19 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
           )}
         </div>
 
-        <h3 className="font-pixel font-bold text-xs sm:text-sm text-[#FFFFFF] group-hover:text-[#6FE35D] transition-colors text-center line-clamp-1 w-full px-1">
+        <h3 className="font-pixel font-bold text-xs sm:text-sm text-[#FFFFFF] group-hover:text-[#55C64B] transition-colors text-center line-clamp-1 w-full px-1">
           {recipe.name}
         </h3>
+
+        <div className="flex items-center gap-1 mt-1">
+          <span className="text-[10px] font-mono text-[#6e7d72] uppercase">
+            {recipe.category}
+          </span>
+          <span className="text-[10px] text-[#414e44]">·</span>
+          <span className="text-[10px] font-mono text-[#55C64B]">
+            {recipe.version}
+          </span>
+        </div>
       </div>
     </div>
   );

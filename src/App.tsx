@@ -1,18 +1,9 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Recipe, AppTab } from './types';
+import { Recipe } from './types';
 import { recipesData, categories } from './data/recipes';
-import { Header } from './components/Header';
-import { HomePage } from './components/HomePage';
+import { CraftingGrid } from './components/CraftingGrid';
 import { RecipeCard } from './components/RecipeCard';
-import { RecipeModal } from './components/RecipeModal';
-import { Footer } from './components/Footer';
 import { MinecraftBackground } from './components/MinecraftBackground';
-import { Hotbar } from './components/Hotbar';
 import { ToastContainer, showToast } from './components/ToastSystem';
 import { sound } from './utils/audio';
 import {
@@ -20,29 +11,44 @@ import {
   Dices,
   RotateCcw,
   SlidersHorizontal,
-  Bookmark,
+  Star,
+  Sparkles,
+  Compass,
+  Boxes,
+  Zap,
 } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<AppTab>('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedVersion, setSelectedVersion] = useState('all');
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [sortBy, setSortBy] = useState<'az' | 'za' | 'yield'>('az');
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  
+  // Currently selected recipe for the 3x3 Hero Workstation
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe>(() => {
+    // Default to Mace or Crafter or Crafting Table
+    const defaultItem = recipesData.find((r) => r.output.item === 'mace') ||
+      recipesData.find((r) => r.output.item === 'crafter') ||
+      recipesData[0];
+    return defaultItem;
+  });
 
+  const [currentVariantIndex, setCurrentVariantIndex] = useState<number>(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const workstationRef = useRef<HTMLDivElement>(null);
 
   // Favorites stored in localStorage
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('crafting_table_favorites');
-      return saved ? JSON.parse(saved) : ['crafting_table', 'diamond_sword', 'mace'];
+      return saved ? JSON.parse(saved) : ['mace', 'crafter', 'crafting_table', 'diamond_sword'];
     } catch {
-      return ['crafting_table', 'diamond_sword', 'mace'];
+      return ['mace', 'crafter', 'crafting_table', 'diamond_sword'];
     }
   });
 
-  // Persist favorites
+  // Toggle favorite recipe
   const toggleFavorite = (recipeId: string) => {
     setFavorites((prev) => {
       const next = prev.includes(recipeId)
@@ -57,7 +63,7 @@ export default function App() {
     });
   };
 
-  // Keyboard shortcut: '/' focuses search input on recipes page
+  // Keyboard shortcut '/' to focus search input
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -73,11 +79,7 @@ export default function App() {
       if (e.key === '/' || (e.key === 'k' && (e.ctrlKey || e.metaKey))) {
         e.preventDefault();
         sound.playWoodClick();
-        setActiveTab('recipes');
-        window.location.hash = 'recipes';
-        setTimeout(() => {
-          searchInputRef.current?.focus();
-        }, 80);
+        searchInputRef.current?.focus();
       }
     };
 
@@ -85,29 +87,41 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // URL Hash handling for distinct pages & deep linking
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.replace(/^#/, '');
-      if (!hash || hash === 'home') {
-        setActiveTab('home');
-      } else if (hash.startsWith('recipe/')) {
-        const recipeId = hash.replace('recipe/', '');
-        const found = recipesData.find((r) => r.id === recipeId);
-        if (found) {
-          setSelectedRecipe(found);
-        }
-      } else if (hash === 'favorites') {
-        setActiveTab('favorites');
-      } else if (hash === 'recipes') {
-        setActiveTab('recipes');
-      }
-    };
+  // Compute all variants for the currently selected output item
+  const allRecipeVariants = useMemo(() => {
+    if (!selectedRecipe) return [];
+    return recipesData.filter((r) => r.output.item === selectedRecipe.output.item);
+  }, [selectedRecipe]);
 
-    handleHashChange();
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  // Handle recipe selection & scroll to workstation
+  const handleSelectRecipe = (recipe: Recipe) => {
+    setSelectedRecipe(recipe);
+    setCurrentVariantIndex(0);
+    workstationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  // Ingredient click navigation inside workstation
+  const handleSelectIngredient = (materialId: string) => {
+    const cleanId = materialId.replace(/^minecraft:/, '').toLowerCase();
+    const matchingRecipe = recipesData.find(
+      (r) => r.output.item === cleanId || r.output.item === materialId || r.id === cleanId
+    );
+    if (matchingRecipe) {
+      handleSelectRecipe(matchingRecipe);
+      showToast({
+        title: 'Ingredient Selected',
+        description: `Now viewing recipe for ${matchingRecipe.name}`,
+        itemId: matchingRecipe.output.item,
+        type: 'info',
+      });
+    } else {
+      showToast({
+        title: 'Raw Material',
+        description: `${cleanId.replace(/_/g, ' ')} is a mined/found material`,
+        type: 'warning',
+      });
+    }
+  };
 
   // Filtered & Sorted Recipes
   const filteredRecipes = useMemo(() => {
@@ -115,17 +129,27 @@ export default function App() {
 
     return recipesData
       .filter((recipe) => {
+        // Version filter
+        if (selectedVersion !== 'all') {
+          if (selectedVersion === '1.21' && !recipe.version.includes('1.21') && !recipe.version.includes('26.2')) {
+            return false;
+          }
+          if (selectedVersion === '1.20' && !recipe.version.includes('1.20')) {
+            return false;
+          }
+        }
+
         // Category filter
         if (selectedCategory !== 'all' && recipe.category !== selectedCategory) {
           return false;
         }
 
-        // Favorites page filter
-        if (activeTab === 'favorites' && !favorites.includes(recipe.id)) {
+        // Favorites filter
+        if (showOnlyFavorites && !favorites.includes(recipe.id) && !favorites.includes(recipe.output.item)) {
           return false;
         }
 
-        // Text Search filter (searches name, output item, ingredients, category)
+        // Search Query filter
         if (query) {
           const nameMatch = recipe.name.toLowerCase().includes(query);
           const itemMatch = recipe.output.item.toLowerCase().includes(query);
@@ -147,269 +171,270 @@ export default function App() {
         if (sortBy === 'yield') return b.output.count - a.output.count;
         return 0;
       });
-  }, [searchQuery, selectedCategory, activeTab, favorites, sortBy]);
+  }, [searchQuery, selectedCategory, selectedVersion, showOnlyFavorites, favorites, sortBy]);
 
   // Random Recipe Discovery
   const handleRandomRecipe = () => {
     sound.playPop();
     const randIdx = Math.floor(Math.random() * recipesData.length);
     const rand = recipesData[randIdx];
-    setSelectedRecipe(rand);
+    handleSelectRecipe(rand);
     showToast({
-      title: 'Random Discovery',
+      title: 'Random Recipe Loaded',
       description: rand.name,
       itemId: rand.output.item,
       type: 'info',
     });
   };
 
-  // Ingredient click navigation inside modal (recursive crafting lookup)
-  const handleSelectIngredient = (ingredientId: string) => {
-    const matchingRecipe = recipesData.find(
-      (r) => r.output.item === ingredientId || r.id === ingredientId
-    );
-    if (matchingRecipe) {
-      setSelectedRecipe(matchingRecipe);
-    }
-  };
-
-  const handleSelectTab = (tab: AppTab) => {
-    setActiveTab(tab);
-    window.location.hash = tab;
-  };
-
   return (
-    <div className="min-h-screen flex flex-col bg-[#0f1210] text-[#A8A8A8] selection:bg-[#55C64B]/30 selection:text-[#FFFFFF] relative pb-32">
-      {/* Authentic Advancement Toasts */}
+    <div className="min-h-screen flex flex-col bg-[#0f1210] text-[#A8A8A8] selection:bg-[#55C64B]/30 selection:text-[#FFFFFF] relative pb-16">
+      {/* Authentic Advancement Toast Notifications */}
       <ToastContainer />
 
       {/* Minecraft Rough Stone & Bedrock Pixel Texture Background */}
       <MinecraftBackground />
 
-      {/* Centered Website Header (NO Subtext Below Title) */}
-      <Header
-        activeTab={activeTab}
-        onSelectTab={handleSelectTab}
-        favoritesCount={favorites.length}
-      />
+      {/* ================= HERO HEADER ================= */}
+      <header className="relative z-10 pt-8 pb-6 px-4 sm:px-8 border-b-2 border-[#2b352e] bg-[#141916]/80 backdrop-blur-md">
+        <div className="max-w-6xl mx-auto flex flex-col items-center text-center">
+          {/* Main Title Badge */}
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#1e2620] border border-[#55C64B]/40 rounded-xs mb-3">
+            <Sparkles className="w-3.5 h-3.5 text-[#55C64B]" />
+            <span className="font-pixel text-[11px] text-[#55C64B] tracking-wider uppercase font-bold">
+              Minecraft 1.20+ & 1.21.4 / 26.2 Recipe Database
+            </span>
+          </div>
 
-      {/* Main Content Pages with Large Blankspace */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-8 pt-8 sm:pt-12">
-        {/* ================= PAGE 1: HOME ================= */}
-        {activeTab === 'home' && (
-          <HomePage
-            onNavigateToRecipes={() => handleSelectTab('recipes')}
-            onNavigateToFavorites={() => handleSelectTab('favorites')}
-          />
-        )}
+          <h1 className="font-pixel font-bold text-3xl sm:text-5xl text-[#FFFFFF] drop-shadow-[0_4px_10px_rgba(0,0,0,0.9)] tracking-tight">
+            MINECRAFT CRAFTING TABLE
+          </h1>
+          <p className="text-xs sm:text-sm text-[#A8A8A8] mt-2 max-w-xl">
+            Search 1,500+ recipes and instantly preview 3×3 crafting grid patterns, ingredients, and <code className="text-[#55C64B]">/give</code> commands.
+          </p>
 
-        {/* ================= PAGE 2: RECIPES & PAGE 3: FAVORITES ================= */}
-        {(activeTab === 'recipes' || activeTab === 'favorites') && (
-          <div className="space-y-8 sm:space-y-10 animate-fadeIn">
-            {/* Page Header Title */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-6 border-b-2 border-[#353e37] text-center sm:text-left">
-              <div>
-                <h2 className="font-pixel font-bold text-2xl sm:text-3xl text-[#FFFFFF]">
-                  {activeTab === 'favorites' ? 'SAVED FAVORITES' : 'CRAFTING RECIPES'}
-                </h2>
-              </div>
+          {/* Quick Metrics Pills */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-4 text-xs font-pixel">
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-[#19201b] border border-[#353e37] rounded-xs text-[#FFFFFF]">
+              <Boxes className="w-3.5 h-3.5 text-[#55C64B]" />
+              <span>1,557 Recipes</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-[#19201b] border border-[#353e37] rounded-xs text-[#FFFFFF]">
+              <Compass className="w-3.5 h-3.5 text-[#55C64B]" />
+              <span>1.20 – 1.21.4 / 26.2</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-[#19201b] border border-[#353e37] rounded-xs text-[#FFFFFF]">
+              <Zap className="w-3.5 h-3.5 text-[#55C64B]" />
+              <span>Instant 3×3 Workstation</span>
+            </div>
+          </div>
+        </div>
+      </header>
 
-              {/* Random Button */}
-              {activeTab === 'recipes' && (
+      {/* ================= HERO 3x3 CRAFTING WORKSTATION ================= */}
+      <section ref={workstationRef} className="relative z-10 max-w-6xl w-full mx-auto px-4 sm:px-8 pt-8 pb-4">
+        <div className="mc-rough-panel border-2 border-[#353e37] p-4 sm:p-6 rounded-xs shadow-2xl space-y-4">
+          <div className="flex items-center justify-between border-b border-[#353e37] pb-3">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 bg-[#55C64B] rounded-xs animate-pulse" />
+              <h2 className="font-pixel font-bold text-base sm:text-xl text-[#FFFFFF]">
+                3×3 CRAFTING WORKSTATION
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={handleRandomRecipe}
+              className="btn-3d-secondary px-3 py-1.5 rounded-xs text-xs font-pixel text-[#FFFFFF] flex items-center gap-1.5 cursor-pointer"
+            >
+              <Dices className="w-3.5 h-3.5 text-[#55C64B]" />
+              <span>Random Item</span>
+            </button>
+          </div>
+
+          {/* Interactive 3x3 Crafting Table Component */}
+          {selectedRecipe && (
+            <CraftingGrid
+              recipe={allRecipeVariants[currentVariantIndex] || selectedRecipe}
+              allRecipeVariants={allRecipeVariants}
+              currentVariantIndex={currentVariantIndex}
+              onSelectVariant={(idx) => setCurrentVariantIndex(idx)}
+              onSelectIngredient={handleSelectIngredient}
+            />
+          )}
+        </div>
+      </section>
+
+      {/* ================= SEARCH & CATALOG SECTION ================= */}
+      <main className="relative z-10 max-w-6xl w-full mx-auto px-4 sm:px-8 pt-6 flex-1 space-y-6">
+        {/* Search & Toolbar Controls */}
+        <div className="mc-rough-panel border-2 border-[#353e37] p-4 sm:p-6 rounded-xs space-y-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            {/* Search Input Bar */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A8A8A8]" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search items, ingredients, or commands (press '/' to focus)..."
+                className="w-full pl-10 pr-10 py-3 bg-[#141815] border-2 border-[#353e37] focus:border-[#55C64B] focus:outline-none rounded-xs text-xs sm:text-sm text-[#FFFFFF] placeholder-[#626e65]"
+              />
+              {searchQuery && (
                 <button
                   type="button"
-                  onClick={handleRandomRecipe}
-                  title="Discover a random recipe"
-                  className="btn-3d-secondary px-4 py-2 rounded-xs text-xs font-pixel text-[#FFFFFF] flex items-center gap-2"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#A8A8A8] hover:text-[#FFFFFF]"
                 >
-                  <Dices className="w-4 h-4 text-[#55C64B]" />
-                  <span>Random Recipe</span>
+                  ✕
                 </button>
               )}
             </div>
 
-            {/* Filter & Search Bar Toolbar */}
-            <div className="mc-rough-panel border-2 border-[#353e37] p-4 sm:p-6 rounded-xs space-y-4">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                {/* Search Bar */}
-                <div className="relative flex-1">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A8A8A8]" />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search recipes or materials (e.g. diamond, mace, iron)..."
-                    className="w-full pl-10 pr-8 py-2.5 bg-[#141815] border-2 border-[#353e37] focus:border-[#55C64B] focus:outline-none rounded-xs text-xs sm:text-sm text-[#FFFFFF] placeholder-[#626e65]"
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#A8A8A8] hover:text-[#FFFFFF]"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-
-                {/* Sort Dropdown */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-[#55C64B]" />
-                  <select
-                    value={sortBy}
-                    onChange={(e) =>
-                      setSortBy(e.target.value as 'az' | 'za' | 'yield')
-                    }
-                    className="bg-[#141815] border-2 border-[#353e37] text-xs text-[#FFFFFF] rounded-xs px-3 py-2.5 focus:outline-none focus:border-[#55C64B] font-pixel"
-                  >
-                    <option value="az">Sort: A to Z</option>
-                    <option value="za">Sort: Z to A</option>
-                    <option value="yield">Sort: Yield</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Category Filter Chips (on Recipes Page) */}
-              {activeTab === 'recipes' && (
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 text-xs">
-                  {categories.map((cat) => {
-                    const isActive = selectedCategory === cat.id;
-                    const catCount =
-                      cat.id === 'all'
-                        ? recipesData.length
-                        : recipesData.filter((r) => r.category === cat.id).length;
-
-                    return (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => {
-                          sound.playWoodClick();
-                          setSelectedCategory(cat.id);
-                        }}
-                        className={`px-3 py-1.5 rounded-xs font-pixel whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                          isActive
-                            ? 'btn-3d text-black'
-                            : 'btn-3d-secondary text-[#A8A8A8]'
-                        }`}
-                      >
-                        <span>{cat.name}</span>
-                        <span
-                          className={`text-[10px] px-1 rounded-xs ${
-                            isActive
-                              ? 'bg-black/25 text-black font-bold'
-                              : 'text-[#6e7d72]'
-                          }`}
-                        >
-                          {catCount}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+            {/* Version Selector */}
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="font-pixel text-xs text-[#A8A8A8]">Version:</span>
+              <select
+                value={selectedVersion}
+                onChange={(e) => setSelectedVersion(e.target.value)}
+                className="bg-[#141815] border-2 border-[#353e37] text-xs text-[#FFFFFF] rounded-xs px-3 py-2.5 focus:outline-none focus:border-[#55C64B] font-pixel"
+              >
+                <option value="all">All Versions</option>
+                <option value="1.21">1.21 / 26.2 (Tricky Trials)</option>
+                <option value="1.20">1.20 (Trails & Tales)</option>
+              </select>
             </div>
 
-            {/* Results Count & Reset Controls */}
-            <div className="flex items-center justify-between text-xs text-[#A8A8A8] px-1">
-              <span>
-                Showing <strong className="text-[#FFFFFF]">{filteredRecipes.length}</strong> recipes
-              </span>
-              {(searchQuery || selectedCategory !== 'all') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setSelectedCategory('all');
-                  }}
-                  className="flex items-center gap-1.5 text-[#55C64B] hover:text-[#6FE35D] font-pixel cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Reset filters</span>
-                </button>
-              )}
+            {/* Sort Dropdown */}
+            <div className="flex items-center gap-2 shrink-0">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-[#55C64B]" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'az' | 'za' | 'yield')}
+                className="bg-[#141815] border-2 border-[#353e37] text-xs text-[#FFFFFF] rounded-xs px-3 py-2.5 focus:outline-none focus:border-[#55C64B] font-pixel"
+              >
+                <option value="az">Sort: A to Z</option>
+                <option value="za">Sort: Z to A</option>
+                <option value="yield">Sort: Yield Count</option>
+              </select>
             </div>
+          </div>
 
-            {/* Recipes Grid — Spacious, well-managed layout */}
-            {filteredRecipes.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6 pt-2">
-                {filteredRecipes.map((recipe) => (
-                  <RecipeCard
-                    key={recipe.id}
-                    recipe={recipe}
-                    isFavorite={favorites.includes(recipe.id)}
-                    onSelect={(rec) => setSelectedRecipe(rec)}
-                    onToggleFavorite={toggleFavorite}
-                  />
-                ))}
-              </div>
-            ) : (
-              /* Clean Empty State with generous blankspace */
-              <div className="py-20 sm:py-28 text-center mc-rough-panel border-2 border-[#353e37] rounded-xs space-y-4">
-                <Bookmark className="w-12 h-12 text-[#6e7d72] mx-auto" />
-                <h3 className="font-pixel font-bold text-lg text-[#FFFFFF]">
-                  {activeTab === 'favorites' ? 'No Saved Favorites' : 'No Recipes Found'}
-                </h3>
-                <p className="text-xs text-[#A8A8A8] max-w-sm mx-auto">
-                  {activeTab === 'favorites'
-                    ? 'Star recipes in the Crafting Table to quickly access them here.'
-                    : 'Try clearing your search query or choosing a different category.'}
-                </p>
-                {activeTab === 'favorites' ? (
+          {/* Category Chips & Favorites Toggle */}
+          <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-[#353e37]">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs max-w-full scrollbar-none">
+              {categories.map((cat) => {
+                const isActive = selectedCategory === cat.id;
+                return (
                   <button
-                    type="button"
-                    onClick={() => handleSelectTab('recipes')}
-                    className="btn-3d px-6 py-2.5 text-xs font-pixel rounded-xs text-black"
-                  >
-                    Browse All Recipes
-                  </button>
-                ) : (
-                  <button
+                    key={cat.id}
                     type="button"
                     onClick={() => {
-                      setSearchQuery('');
-                      setSelectedCategory('all');
+                      sound.playWoodClick();
+                      setSelectedCategory(cat.id);
                     }}
-                    className="btn-3d px-6 py-2.5 text-xs font-pixel rounded-xs text-black"
+                    className={`px-3 py-1.5 rounded-xs font-pixel whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                      isActive
+                        ? 'btn-3d text-black font-bold'
+                        : 'btn-3d-secondary text-[#A8A8A8] hover:text-[#FFFFFF]'
+                    }`}
                   >
-                    Clear Filters
+                    <span>{cat.name}</span>
                   </button>
-                )}
-              </div>
-            )}
+                );
+              })}
+            </div>
 
-            {/* Generous Blank Space at Bottom of Page */}
-            <div className="h-16 sm:h-24" />
+            {/* Favorite Star Filter Button */}
+            <button
+              type="button"
+              onClick={() => {
+                sound.playPop();
+                setShowOnlyFavorites(!showOnlyFavorites);
+              }}
+              className={`px-3 py-1.5 rounded-xs font-pixel text-xs flex items-center gap-1.5 cursor-pointer border transition-colors ${
+                showOnlyFavorites
+                  ? 'bg-[#55C64B] text-black border-[#7eed72] font-bold'
+                  : 'bg-[#19201b] text-[#A8A8A8] hover:text-[#FFFFFF] border-[#353e37]'
+              }`}
+            >
+              <Star className={`w-3.5 h-3.5 ${showOnlyFavorites ? 'fill-current' : ''}`} />
+              <span>Starred ({favorites.length})</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Results Counter & Reset Controls */}
+        <div className="flex items-center justify-between text-xs text-[#A8A8A8] px-1">
+          <span>
+            Showing <strong className="text-[#FFFFFF]">{filteredRecipes.length}</strong> craftable items
+          </span>
+          {(searchQuery || selectedCategory !== 'all' || selectedVersion !== 'all' || showOnlyFavorites) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedCategory('all');
+                setSelectedVersion('all');
+                setShowOnlyFavorites(false);
+              }}
+              className="flex items-center gap-1.5 text-[#55C64B] hover:text-[#6FE35D] font-pixel cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset all filters</span>
+            </button>
+          )}
+        </div>
+
+        {/* Craftable Items Catalog Grid */}
+        {filteredRecipes.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6 pt-2">
+            {filteredRecipes.map((recipe) => (
+              <RecipeCard
+                key={recipe.id}
+                recipe={recipe}
+                isSelected={selectedRecipe?.output.item === recipe.output.item}
+                isFavorite={favorites.includes(recipe.id) || favorites.includes(recipe.output.item)}
+                onSelect={handleSelectRecipe}
+                onToggleFavorite={toggleFavorite}
+              />
+            ))}
+          </div>
+        ) : (
+          /* Empty State */
+          <div className="py-20 text-center mc-rough-panel border-2 border-[#353e37] rounded-xs space-y-4">
+            <Search className="w-10 h-10 text-[#6e7d72] mx-auto" />
+            <h3 className="font-pixel font-bold text-lg text-[#FFFFFF]">
+              No Craftable Items Found
+            </h3>
+            <p className="text-xs text-[#A8A8A8] max-w-sm mx-auto">
+              Try modifying your search query, clearing version filters, or selecting a different item category.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedCategory('all');
+                setSelectedVersion('all');
+                setShowOnlyFavorites(false);
+              }}
+              className="btn-3d px-6 py-2.5 text-xs font-pixel rounded-xs text-black"
+            >
+              Reset Filters
+            </button>
           </div>
         )}
       </main>
 
-      {/* Footer with Centered Title & Clean Links */}
-      <Footer onSelectTab={handleSelectTab} />
-
-      {/* 3-Slot Minecraft Navigation Hotbar (Fixed HUD) */}
-      <Hotbar
-        activeTab={activeTab}
-        onSelectTab={handleSelectTab}
-        favoritesCount={favorites.length}
-      />
-
-      {/* Recipe Modal: Shows only 3x3 Grid, Total Items Used, and Product Created */}
-      {selectedRecipe && (
-        <RecipeModal
-          recipe={selectedRecipe}
-          onClose={() => {
-            setSelectedRecipe(null);
-            if (window.location.hash.startsWith('#recipe/')) {
-              window.location.hash = activeTab;
-            }
-          }}
-          onSelectIngredient={handleSelectIngredient}
-          isFavorite={favorites.includes(selectedRecipe.id)}
-          onToggleFavorite={toggleFavorite}
-        />
-      )}
+      {/* ================= HERO PAGE FOOTER ================= */}
+      <footer className="relative z-10 max-w-6xl w-full mx-auto px-4 sm:px-8 pt-12 pb-6 text-center text-xs text-[#6e7d72] border-t border-[#252e27] mt-16">
+        <p className="font-pixel text-[#A8A8A8]">
+          MINECRAFT CRAFTING TABLE WORKSTATION · VERSION 1.20 - 1.21.4 / 26.2
+        </p>
+        <p className="text-[11px] mt-1">
+          Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.
+        </p>
+      </footer>
     </div>
   );
 }
